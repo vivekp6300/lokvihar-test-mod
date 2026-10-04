@@ -1,5 +1,7 @@
 package com.vivek.minecraft;
 
+import com.vivek.minecraft.item.ModItems;
+
 import net.fabricmc.api.ModInitializer;
 
 import net.minecraft.resources.Identifier;
@@ -22,6 +24,8 @@ public class LokViharTestMod implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Hello Fabric world!");
+
+		ModItems.initialize();
 	}
 
 	public static Identifier id(String path) {
