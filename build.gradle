@@ -1,19 +1,75 @@
+/*
+ * ============================================================================
+ *  build.gradle — how Gradle compiles, runs and packages this mod
+ * ============================================================================
+ *
+ *  Gradle reads this file every time you run ./gradlew <task>. Common tasks:
+ *
+ *      ./gradlew build       -> compile + jar. Output: build/libs/
+ *                                 lokvihar-test-mod-1.0.0.jar          (the mod; drop into mods/)
+ *                                 lokvihar-test-mod-1.0.0-sources.jar  (source code, for other devs)
+ *      ./gradlew runClient   -> launch a dev Minecraft client with the mod loaded
+ *      ./gradlew runServer   -> launch a dev dedicated server (run/ folder)
+ *      ./gradlew genSources  -> decompile Minecraft so you can read its source
+ *                               in your IDE (great for finding mixin targets)
+ *
+ *  Version numbers are NOT written here. They're "${...}" placeholders filled
+ *  from gradle.properties, so upgrading Minecraft/Fabric means editing only
+ *  that one file (plus fabric.mod.json's "depends" block).
+ */
+
+// ----------------------------------------------------------------------------
+//  Plugins: extensions that add tasks and configuration blocks to Gradle.
+// ----------------------------------------------------------------------------
 plugins {
+	// Fabric Loom: the Gradle plugin for Fabric mod development. It downloads
+	// Minecraft, sets up the classpath, provides runClient/runServer/genSources,
+	// and adds the `loom { }` and `minecraft` dependency support below.
+	//
+	// NOTE the ID: "net.fabricmc.fabric-loom" (not the older "fabric-loom").
+	// This is the NON-REMAPPING variant for Minecraft 26.x and later, which
+	// ship without obfuscation. There are no mappings (Yarn/intermediary) to
+	// apply, so Loom skips the remapping step entirely and the code uses
+	// Mojang's real class/method names.
 	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+
+	// Lets this project publish its jar to a Maven repository (see the
+	// `publishing` block at the bottom). Unused unless you add a repository.
 	id 'maven-publish'
 }
 
+// ----------------------------------------------------------------------------
+//  Repositories: where to DOWNLOAD dependencies from.
+// ----------------------------------------------------------------------------
 repositories {
 	// Add repositories to retrieve artifacts from in here.
 	// You should only use this when depending on other mods because
 	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
 	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
 	// for more information about repositories.
+	//
+	// Example, if you wanted to depend on a mod hosted on Modrinth:
+	//     maven { url = "https://api.modrinth.com/maven" }
 }
 
+// ----------------------------------------------------------------------------
+//  Loom configuration
+// ----------------------------------------------------------------------------
 loom {
+	// Split the code into two source sets instead of one:
+	//
+	//     src/main/   -> "main" source set: common code (client AND server)
+	//     src/client/ -> "client" source set: client-only code
+	//
+	// The client set can see main, but main CANNOT see client, nor any
+	// net.minecraft.client.* class. That turns "I accidentally used a client
+	// class in server code" from a dedicated-server crash into a compile error.
 	splitEnvironmentSourceSets()
 
+	// Tell Loom that both source sets belong to ONE mod, with ID
+	// "lokvihar-test-mod". In dev runs (runClient), Fabric then treats the
+	// compiled output of both folders as a single mod instead of two.
+	// The name in quotes must equal the "id" in fabric.mod.json.
 	mods {
 		"lokvihar-test-mod" {
 			sourceSet sourceSets.main
@@ -22,25 +78,62 @@ loom {
 	}
 }
 
+// ----------------------------------------------------------------------------
+//  Dependencies: libraries the mod compiles against and runs with.
+// ----------------------------------------------------------------------------
 dependencies {
 	// To change the versions see the gradle.properties file
+
+	// Minecraft itself. "minecraft" is a special configuration added by Loom:
+	// it downloads the official client + server jars for this version and
+	// merges them into one dependency.
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+	// Fabric Loader: the small core that finds mods, applies mixins and calls
+	// entrypoints. Players install it via the Fabric installer.
+	//
+	// NOTE: plain `implementation`, not `modImplementation`. On older
+	// (obfuscated) Minecraft versions, mod dependencies had to be remapped,
+	// hence the special `mod*` configurations. With unobfuscated 26.x and the
+	// non-remapping Loom plugin, normal Gradle configurations are used.
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
+	//
+	// It's a collection of hooks and helpers that vanilla doesn't provide,
+	// e.g. CreativeModeTabEvents used in ModItems. Players must install the
+	// Fabric API mod too (fabric.mod.json declares it in "depends").
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
 
+// ----------------------------------------------------------------------------
+//  processResources: copies src/*/resources into the jar, with templating.
+// ----------------------------------------------------------------------------
 processResources {
+	// Read the version once at configuration time (also keeps Gradle's
+	// configuration cache happy: no `project` access during execution).
 	def version = project.version
+
+	// Declare the version as an input of this task, so changing it in
+	// gradle.properties correctly invalidates the cached output.
 	inputs.property "version", version
 
+	// In fabric.mod.json ONLY, replace the text ${version} with the real
+	// version (e.g. "1.0.0"). This keeps the version in one place:
+	// gradle.properties. Other resource files are copied untouched.
 	filesMatching("fabric.mod.json") {
 		expand "version": version
 	}
 }
 
+// ----------------------------------------------------------------------------
+//  Java compiler settings
+// ----------------------------------------------------------------------------
 tasks.withType(JavaCompile).configureEach {
+	// Compile for Java 25: language features AND the standard-library API.
+	// `release` is stricter than source/targetCompatibility. It stops you from
+	// accidentally calling JDK APIs newer than 25. Minecraft 26.x requires
+	// Java 25, so this matches the "java": ">=25" entry in fabric.mod.json.
 	it.options.release = 25
 }
 
@@ -48,24 +141,42 @@ java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.
 	// If you remove this line, sources will not be generated.
+	//
+	// Produces build/libs/<name>-<version>-sources.jar alongside the main jar.
 	withSourcesJar()
 
+	// Mostly informational for IDEs and other plugins. The actual compile
+	// target is enforced by `options.release` above.
 	sourceCompatibility = JavaVersion.VERSION_25
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
+// ----------------------------------------------------------------------------
+//  jar: customizes the main mod jar
+// ----------------------------------------------------------------------------
 jar {
+	// Captured at configuration time, for the same configuration-cache
+	// reason as `version` in processResources.
 	def projectName = project.name
 	inputs.property "projectName", projectName
 
+	// Bundle the LICENSE file into the jar, renamed to
+	// "LICENSE_lokvihar-test-mod". The suffix stops it clashing with other
+	// mods' LICENSE files when jars get merged or unpacked together.
 	from("LICENSE") {
 		rename { "${it}_$projectName"}
 	}
 }
 
+// ----------------------------------------------------------------------------
+//  Publishing (optional): push the jar to a Maven repo for other mods to use.
+// ----------------------------------------------------------------------------
 // configure the maven publication
 publishing {
 	publications {
+		// One publication named "mavenJava" containing the java component:
+		// the main jar, the sources jar and a generated POM. Its coordinates
+		// come from `group` (gradle.properties), the project name and `version`.
 		create("mavenJava", MavenPublication) {
 			from components.java
 		}
@@ -77,5 +188,8 @@ publishing {
 		// Notice: This block does NOT have the same function as the block in the top level.
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
+		//
+		// Empty means `./gradlew publish` has nowhere to send anything.
+		// `./gradlew publishToMavenLocal` still works (writes to ~/.m2).
 	}
 }

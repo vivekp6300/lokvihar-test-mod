@@ -1,13 +1,39 @@
+/*
+ * ============================================================================
+ *  settings.gradle — evaluated BEFORE build.gradle
+ * ============================================================================
+ *
+ *  Gradle reads this file first to learn two things:
+ *    1. where to download PLUGINS from (pluginManagement), and
+ *    2. what the project is called and which subprojects it has.
+ *
+ *  This is a single-project build, so there are no `include` lines.
+ */
+
 pluginManagement {
+	// Plugin repositories are separate from dependency repositories. The
+	// `plugins { id 'net.fabricmc.fabric-loom' ... }` block in build.gradle is
+	// resolved against THIS list, not against build.gradle's `repositories`.
 	repositories {
+		// Fabric's own Maven. Hosts Fabric Loom, including the -SNAPSHOT
+		// builds referenced by loom_version in gradle.properties. Listed first
+		// so it's checked first.
 		maven {
 			name = 'Fabric'
 			url = 'https://maven.fabricmc.net/'
 		}
+		// Loom's own dependencies (ASM, Gson, ...) live here.
 		mavenCentral()
+		// The default Gradle plugin repository (e.g. for maven-publish helpers).
 		gradlePluginPortal()
 	}
 }
 
 // Should match your modid
+//
+// Used as the base name of the built jars
+// (build/libs/lokvihar-test-mod-<version>.jar), as the Maven artifactId when
+// publishing, and as the suffix of the bundled LICENSE file (see `jar` in
+// build.gradle). Keeping it equal to MOD_ID / fabric.mod.json "id" is a
+// convention, not a technical requirement.
 rootProject.name = 'lokvihar-test-mod'
