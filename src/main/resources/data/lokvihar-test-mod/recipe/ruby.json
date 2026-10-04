@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"pattern": [
+		"NNN",
+		"NDN",
+		"NNN"
+	],
+	"key": {
+		"N": "minecraft:iron_nugget",
+		"D": "minecraft:red_dye"
+	},
+	"result": {
+		"id": "lokvihar-test-mod:ruby",
+		"count": 1
+	}
+}
