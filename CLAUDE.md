@@ -8,6 +8,8 @@ A Fabric mod (`lokvihar-test-mod`) for Minecraft 26.1.2, generated from the Fabr
 
 Toolchain: Java 25, Gradle 9.7.1 (wrapper), Fabric Loom 1.18-SNAPSHOT, Fabric Loader 0.19.5, Fabric API 0.155.3+26.1.2. All versions live in `gradle.properties`. Keep them in sync with the `depends` block in `src/main/resources/fabric.mod.json`.
 
+The project is built on Windows, macOS and CI. Never commit machine-specific values such as `org.gradle.java.home` or absolute paths. The Java version is pinned in `gradle/gradle-daemon-jvm.properties` (`toolchainVersion`). Per-machine overrides belong in `~/.gradle/gradle.properties`; see README "Per-machine settings".
+
 ## Commands
 
 - `./gradlew build`: compile and produce the mod jar plus sources jar in `build/libs/`
