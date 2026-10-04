@@ -1,0 +1,22 @@
+# gradle
+.gradle/
+build/
+out/
+bin/
+classes/
+
+# dev game directory created by runClient/runServer
+run/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# macOS
+.DS_Store
